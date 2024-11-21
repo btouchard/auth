@@ -90,19 +90,13 @@ func (AuditLogEntry) TableName() string {
 	return tableName
 }
 
-func NewAuditLogEntry(r *http.Request, tx *storage.Connection, actor *User, action AuditAction, ipAddress string, traits map[string]interface{}) error {
+func NewAuditLogEntry(r *http.Request, tx *storage.Connection, actor Actor, action AuditAction, ipAddress string, traits map[string]interface{}) error {
 	id := uuid.Must(uuid.NewV4())
 
-	username := actor.GetEmail()
-
-	if actor.GetPhone() != "" {
-		username = actor.GetPhone()
-	}
-
 	payload := map[string]interface{}{
-		"actor_id":       actor.ID,
-		"actor_via_sso":  actor.IsSSOUser,
-		"actor_username": username,
+		"actor_id":       actor.GetID(),
+		"actor_via_sso":  actor.IsFromSSO(),
+		"actor_username": actor.GetIdentifier(),
 		"action":         action,
 		"log_type":       ActionLogTypeMap[action],
 	}
@@ -116,8 +110,10 @@ func NewAuditLogEntry(r *http.Request, tx *storage.Connection, actor *User, acti
 		"auth_event": logrus.Fields(payload),
 	})
 
-	if name, ok := actor.UserMetaData["full_name"]; ok {
-		l.Payload["actor_name"] = name
+	if user, ok := actor.(*User); ok {
+		if name, ok := user.UserMetaData["full_name"]; ok {
+			l.Payload["actor_name"] = name
+		}
 	}
 
 	if traits != nil {

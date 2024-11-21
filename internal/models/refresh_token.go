@@ -54,8 +54,8 @@ func (g *GrantParams) FillGrantParams(r *http.Request) {
 }
 
 // GrantAuthenticatedUser creates a refresh token for the provided user.
-func GrantAuthenticatedUser(tx *storage.Connection, user *User, params GrantParams) (*RefreshToken, error) {
-	return createRefreshToken(tx, user, nil, &params)
+func GrantAuthenticatedUser(tx *storage.Connection, actor Actor, params GrantParams) (*RefreshToken, error) {
+	return createRefreshToken(tx, actor, nil, &params)
 }
 
 // GrantRefreshTokenSwap swaps a refresh token for a new one, revoking the provided token.
@@ -115,9 +115,9 @@ func FindTokenBySessionID(tx *storage.Connection, sessionId *uuid.UUID) (*Refres
 	return refreshToken, nil
 }
 
-func createRefreshToken(tx *storage.Connection, user *User, oldToken *RefreshToken, params *GrantParams) (*RefreshToken, error) {
+func createRefreshToken(tx *storage.Connection, actor Actor, oldToken *RefreshToken, params *GrantParams) (*RefreshToken, error) {
 	token := &RefreshToken{
-		UserID: user.ID,
+		UserID: actor.GetID(),
 		Token:  crypto.SecureToken(),
 		Parent: "",
 	}
@@ -127,7 +127,7 @@ func createRefreshToken(tx *storage.Connection, user *User, oldToken *RefreshTok
 	}
 
 	if token.SessionId == nil {
-		session, err := NewSession(user.ID, params.FactorID)
+		session, err := NewSession(actor.GetID(), params.FactorID)
 		if err != nil {
 			return nil, errors.Wrap(err, "error instantiating new session object")
 		}
@@ -159,8 +159,8 @@ func createRefreshToken(tx *storage.Connection, user *User, oldToken *RefreshTok
 		return nil, errors.Wrap(err, "error creating refresh token")
 	}
 
-	if err := user.UpdateLastSignInAt(tx); err != nil {
-		return nil, errors.Wrap(err, "error update user`s last_sign_in field")
+	if err := actor.UpdateLastSignInAt(tx); err != nil {
+		return nil, errors.Wrap(err, "error update actor`s last_sign_in field")
 	}
 	return token, nil
 }

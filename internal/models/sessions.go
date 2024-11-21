@@ -279,7 +279,7 @@ func (s *Session) UpdateAALAndAssociatedFactor(tx *storage.Connection, aal Authe
 	return tx.UpdateOnly(s, "aal", "factor_id")
 }
 
-func (s *Session) CalculateAALAndAMR(user *User) (aal AuthenticatorAssuranceLevel, amr []AMREntry, err error) {
+func (s *Session) CalculateAALAndAMR(actor Actor) (aal AuthenticatorAssuranceLevel, amr []AMREntry, err error) {
 	amr, aal = []AMREntry{}, AAL1
 	for _, claim := range s.AMRClaims {
 		if claim.IsAAL2Claim() {
@@ -302,7 +302,7 @@ func (s *Session) CalculateAALAndAMR(user *User) (aal AuthenticatorAssuranceLeve
 
 	lastIndex := len(amr) - 1
 
-	if lastIndex > -1 && amr[lastIndex].Method == SSOSAML.String() {
+	if user, ok := actor.(*User); ok && lastIndex > -1 && amr[lastIndex].Method == SSOSAML.String() {
 		// initial AMR claim is from sso/saml, we need to add information
 		// about the provider that was used for the authentication
 		identities := user.Identities

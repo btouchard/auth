@@ -44,6 +44,13 @@ func (e UserNotFoundError) Error() string {
 	return "User not found"
 }
 
+// ClientNotFoundError represents when a client is not found.
+type ClientNotFoundError struct{}
+
+func (e ClientNotFoundError) Error() string {
+	return "Client not found"
+}
+
 // IdentityNotFoundError represents when an identity is not found.
 type IdentityNotFoundError struct{}
 

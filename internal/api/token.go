@@ -41,7 +41,8 @@ type AccessTokenResponse struct {
 	ExpiresIn            int                `json:"expires_in"`
 	ExpiresAt            int64              `json:"expires_at"`
 	RefreshToken         string             `json:"refresh_token"`
-	User                 *models.User       `json:"user"`
+	User                 *models.User       `json:"user,omitempty"`
+	Client               *models.Client     `json:"client,omitempty"`
 	ProviderAccessToken  string             `json:"provider_token,omitempty"`
 	ProviderRefreshToken string             `json:"provider_refresh_token,omitempty"`
 	WeakPassword         *WeakPasswordError `json:"weak_password,omitempty"`
@@ -66,6 +67,12 @@ type PasswordGrantParams struct {
 	Password string `json:"password"`
 }
 
+// ClientSecretGrantParams are the parameters the ResourceClientSecretGrant method accepts
+type ClientSecretGrantParams struct {
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+}
+
 // PKCEGrantParams are the parameters the PKCEGrant method accepts
 type PKCEGrantParams struct {
 	AuthCode     string `json:"auth_code"`
@@ -82,6 +89,8 @@ func (a *API) Token(w http.ResponseWriter, r *http.Request) error {
 	switch grantType {
 	case "password":
 		return a.ResourceOwnerPasswordGrant(ctx, w, r)
+	case "client_secret":
+		return a.ResourceClientSecretGrant(ctx, w, r)
 	case "refresh_token":
 		return a.RefreshTokenGrant(ctx, w, r)
 	case "id_token":
@@ -234,6 +243,99 @@ func (a *API) ResourceOwnerPasswordGrant(ctx context.Context, w http.ResponseWri
 	return sendJSON(w, http.StatusOK, token)
 }
 
+// ResourceClientSecretGrant implements the client secret grant type flow
+func (a *API) ResourceClientSecretGrant(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	db := a.db.WithContext(ctx)
+
+	params := &ClientSecretGrantParams{}
+	if err := retrieveRequestParams(r, params); err != nil {
+		return err
+	}
+
+	aud := a.requestAud(ctx, r)
+	config := a.config
+
+	if params.ClientID != "" || params.ClientSecret != "" {
+		return badRequestError(ErrorCodeValidationFailed, "Client ID and Secret should be provided on login.")
+	}
+	var client *models.Client
+	var grantParams models.GrantParams
+	var provider = "client_id"
+	var err error
+
+	grantParams.FillGrantParams(r)
+
+	client, err = models.FindClientByClientIDAndAudience(db, params.ClientID, aud)
+
+	if err != nil {
+		if models.IsNotFoundError(err) {
+			return badRequestError(ErrorCodeInvalidCredentials, InvalidLoginMessage)
+		}
+		return internalServerError("Database error querying schema").WithInternalError(err)
+	}
+
+	if !client.HasPassword() {
+		return badRequestError(ErrorCodeInvalidCredentials, InvalidLoginMessage)
+	}
+
+	if client.IsBanned() {
+		return badRequestError(ErrorCodeUserBanned, "User is banned")
+	}
+
+	isValidPassword, _, err := client.Authenticate(ctx, db, params.ClientSecret, config.Security.DBEncryption.DecryptionKeys, config.Security.DBEncryption.Encrypt, config.Security.DBEncryption.EncryptionKeyID)
+	if err != nil {
+		return err
+	}
+
+	if config.Hook.PasswordVerificationAttempt.Enabled {
+		input := hooks.PasswordVerificationAttemptInput{
+			UserID: client.ID,
+			Valid:  isValidPassword,
+		}
+		output := hooks.PasswordVerificationAttemptOutput{}
+		if err := a.invokeHook(nil, r, &input, &output); err != nil {
+			return err
+		}
+
+		if output.Decision == hooks.HookRejection {
+			if output.Message == "" {
+				output.Message = hooks.DefaultPasswordHookRejectionMessage
+			}
+			if output.ShouldLogoutUser {
+				if err := models.Logout(a.db, client.ID); err != nil {
+					return err
+				}
+			}
+			return badRequestError(ErrorCodeInvalidCredentials, output.Message)
+		}
+	}
+	if !isValidPassword {
+		return badRequestError(ErrorCodeInvalidCredentials, InvalidLoginMessage)
+	}
+
+	var token *AccessTokenResponse
+	err = db.Transaction(func(tx *storage.Connection) error {
+		var terr error
+		if terr = models.NewAuditLogEntry(r, tx, client, models.LoginAction, "", map[string]interface{}{
+			"provider": provider,
+		}); terr != nil {
+			return terr
+		}
+		token, terr = a.issueRefreshToken(r, tx, client, models.PasswordGrant, grantParams)
+		if terr != nil {
+			return terr
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	metering.RecordLogin("client_secret", client.ID)
+	return sendJSON(w, http.StatusOK, token)
+}
+
 func (a *API) PKCE(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	db := a.db.WithContext(ctx)
 	var grantParams models.GrantParams
@@ -307,7 +409,7 @@ func (a *API) PKCE(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 	return sendJSON(w, http.StatusOK, token)
 }
 
-func (a *API) generateAccessToken(r *http.Request, tx *storage.Connection, user *models.User, sessionId *uuid.UUID, authenticationMethod models.AuthenticationMethod) (string, int64, error) {
+func (a *API) generateAccessToken(r *http.Request, tx *storage.Connection, actor models.Actor, sessionId *uuid.UUID, authenticationMethod models.AuthenticationMethod) (string, int64, error) {
 	config := a.config
 	if sessionId == nil {
 		return "", 0, internalServerError("Session is required to issue access token")
@@ -317,7 +419,7 @@ func (a *API) generateAccessToken(r *http.Request, tx *storage.Connection, user 
 	if terr != nil {
 		return "", 0, terr
 	}
-	aal, amr, terr := session.CalculateAALAndAMR(user)
+	aal, amr, terr := session.CalculateAALAndAMR(actor)
 	if terr != nil {
 		return "", 0, terr
 	}
@@ -327,27 +429,30 @@ func (a *API) generateAccessToken(r *http.Request, tx *storage.Connection, user 
 
 	claims := &hooks.AccessTokenClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   user.ID.String(),
-			Audience:  jwt.ClaimStrings{user.Aud},
+			Subject:   actor.GetID().String(),
+			Audience:  jwt.ClaimStrings{actor.GetAud()},
 			IssuedAt:  jwt.NewNumericDate(issuedAt),
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			Issuer:    config.JWT.Issuer,
 		},
-		Email:                         user.GetEmail(),
-		Phone:                         user.GetPhone(),
-		AppMetaData:                   user.AppMetaData,
-		UserMetaData:                  user.UserMetaData,
-		Role:                          user.Role,
+		Role:                          actor.GetRole(),
 		SessionId:                     sid,
 		AuthenticatorAssuranceLevel:   aal.String(),
 		AuthenticationMethodReference: amr,
-		IsAnonymous:                   user.IsAnonymous,
+	}
+
+	if user, ok := actor.(*models.User); ok {
+		claims.Email = user.GetEmail()
+		claims.Phone = user.GetPhone()
+		claims.AppMetaData = user.AppMetaData
+		claims.UserMetaData = user.UserMetaData
+		claims.IsAnonymous = user.IsAnonymous
 	}
 
 	var gotrueClaims jwt.Claims = claims
 	if config.Hook.CustomAccessToken.Enabled {
 		input := hooks.CustomAccessTokenInput{
-			UserID:               user.ID,
+			UserID:               actor.GetID(),
 			Claims:               claims,
 			AuthenticationMethod: authenticationMethod.String(),
 		}
@@ -369,11 +474,10 @@ func (a *API) generateAccessToken(r *http.Request, tx *storage.Connection, user 
 	return signed, expiresAt.Unix(), nil
 }
 
-func (a *API) issueRefreshToken(r *http.Request, conn *storage.Connection, user *models.User, authenticationMethod models.AuthenticationMethod, grantParams models.GrantParams) (*AccessTokenResponse, error) {
+func (a *API) issueRefreshToken(r *http.Request, conn *storage.Connection, actor models.Actor, authenticationMethod models.AuthenticationMethod, grantParams models.GrantParams) (*AccessTokenResponse, error) {
 	config := a.config
 
-	now := time.Now()
-	user.LastSignInAt = &now
+	actor.SetLastSignInAt(time.Now())
 
 	var tokenString string
 	var expiresAt int64
@@ -382,9 +486,9 @@ func (a *API) issueRefreshToken(r *http.Request, conn *storage.Connection, user 
 	err := conn.Transaction(func(tx *storage.Connection) error {
 		var terr error
 
-		refreshToken, terr = models.GrantAuthenticatedUser(tx, user, grantParams)
+		refreshToken, terr = models.GrantAuthenticatedUser(tx, actor, grantParams)
 		if terr != nil {
-			return internalServerError("Database error granting user").WithInternalError(terr)
+			return internalServerError("Database error granting actor").WithInternalError(terr)
 		}
 
 		terr = models.AddClaimToSession(tx, *refreshToken.SessionId, authenticationMethod)
@@ -392,7 +496,7 @@ func (a *API) issueRefreshToken(r *http.Request, conn *storage.Connection, user 
 			return terr
 		}
 
-		tokenString, expiresAt, terr = a.generateAccessToken(r, tx, user, refreshToken.SessionId, authenticationMethod)
+		tokenString, expiresAt, terr = a.generateAccessToken(r, tx, actor, refreshToken.SessionId, authenticationMethod)
 		if terr != nil {
 			// Account for Hook Error
 			httpErr, ok := terr.(*HTTPError)
@@ -407,14 +511,20 @@ func (a *API) issueRefreshToken(r *http.Request, conn *storage.Connection, user 
 		return nil, err
 	}
 
-	return &AccessTokenResponse{
+	resp := &AccessTokenResponse{
 		Token:        tokenString,
 		TokenType:    "bearer",
 		ExpiresIn:    config.JWT.Exp,
 		ExpiresAt:    expiresAt,
 		RefreshToken: refreshToken.Token,
-		User:         user,
-	}, nil
+	}
+	if user, ok := actor.(*models.User); ok {
+		resp.User = user
+	} else if client, ok := actor.(*models.Client); ok {
+		resp.Client = client
+	}
+
+	return resp, nil
 }
 
 func (a *API) updateMFASessionAndClaims(r *http.Request, tx *storage.Connection, user *models.User, authenticationMethod models.AuthenticationMethod, grantParams models.GrantParams) (*AccessTokenResponse, error) {

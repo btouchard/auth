@@ -68,6 +68,7 @@ type RequestParams interface {
 		OtpParams |
 		PKCEGrantParams |
 		PasswordGrantParams |
+		ClientSecretGrantParams |
 		RecoverParams |
 		RefreshTokenGrantParams |
 		ResendConfirmationParams |

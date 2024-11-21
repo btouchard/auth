@@ -138,6 +138,34 @@ func (User) TableName() string {
 	return tableName
 }
 
+func (u *User) GetID() uuid.UUID {
+	return u.ID
+}
+
+func (u *User) GetAud() string {
+	return u.Aud
+}
+
+func (u *User) GetIdentifier() string {
+	username := u.GetEmail()
+	if u.GetPhone() != "" {
+		username = u.GetPhone()
+	}
+	return username
+}
+
+func (u *User) GetRole() string {
+	return u.Role
+}
+
+func (u *User) IsFromSSO() bool {
+	return u.IsSSOUser
+}
+
+func (u *User) SetLastSignInAt(now time.Time) {
+	u.LastSignInAt = &now
+}
+
 func (u *User) HasPassword() bool {
 	var pwd string
 
@@ -934,22 +962,22 @@ func (u *User) FindOwnedFactorByID(tx *storage.Connection, factorID uuid.UUID) (
 	return &factor, nil
 }
 
-func (user *User) WebAuthnID() []byte {
-	return []byte(user.ID.String())
+func (u *User) WebAuthnID() []byte {
+	return []byte(u.ID.String())
 }
 
-func (user *User) WebAuthnName() string {
-	return user.Email.String()
+func (u *User) WebAuthnName() string {
+	return u.Email.String()
 }
 
-func (user *User) WebAuthnDisplayName() string {
-	return user.Email.String()
+func (u *User) WebAuthnDisplayName() string {
+	return u.Email.String()
 }
 
-func (user *User) WebAuthnCredentials() []webauthn.Credential {
+func (u *User) WebAuthnCredentials() []webauthn.Credential {
 	var credentials []webauthn.Credential
 
-	for _, factor := range user.Factors {
+	for _, factor := range u.Factors {
 		if factor.IsVerified() && factor.FactorType == WebAuthn {
 			credential := factor.WebAuthnCredential.Credential
 			credentials = append(credentials, credential)
