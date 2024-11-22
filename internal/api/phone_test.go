@@ -163,7 +163,7 @@ func (ts *PhoneTestSuite) TestMissingSmsProviderConfig() {
 	u.PhoneConfirmedAt = &now
 	require.NoError(ts.T(), ts.API.db.Update(u), "Error updating new test user")
 
-	s, err := models.NewSession(u.ID, nil)
+	s, err := models.NewUserSession(u.ID, nil)
 	require.NoError(ts.T(), err)
 	require.NoError(ts.T(), ts.API.db.Create(s))
 
@@ -273,7 +273,7 @@ func (ts *PhoneTestSuite) TestSendSMSHook() {
 	u.PhoneConfirmedAt = &now
 	require.NoError(ts.T(), ts.API.db.Update(u), "Error updating new test user")
 
-	s, err := models.NewSession(u.ID, nil)
+	s, err := models.NewUserSession(u.ID, nil)
 	require.NoError(ts.T(), err)
 	require.NoError(ts.T(), ts.API.db.Create(s))
 

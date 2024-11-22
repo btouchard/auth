@@ -58,8 +58,9 @@ func (s sortAMREntries) Swap(i, j int) {
 }
 
 type Session struct {
-	ID     uuid.UUID `json:"-" db:"id"`
-	UserID uuid.UUID `json:"user_id" db:"user_id"`
+	ID       uuid.UUID  `json:"-" db:"id"`
+	UserID   *uuid.UUID `json:"user_id,omitempty" db:"user_id"`
+	ClientID *uuid.UUID `json:"client_id,omitempty" db:"client_id"`
 
 	// NotAfter is overriden by timeboxed sessions.
 	NotAfter *time.Time `json:"not_after,omitempty" db:"not_after"`
@@ -154,7 +155,7 @@ func (s *Session) DetermineTag(tags []string) string {
 	return tags[0]
 }
 
-func NewSession(userID uuid.UUID, factorID *uuid.UUID) (*Session, error) {
+func NewUserSession(userID uuid.UUID, factorID *uuid.UUID) (*Session, error) {
 	id := uuid.Must(uuid.NewV4())
 
 	defaultAAL := AAL1.String()
@@ -162,7 +163,22 @@ func NewSession(userID uuid.UUID, factorID *uuid.UUID) (*Session, error) {
 	session := &Session{
 		ID:       id,
 		AAL:      &defaultAAL,
-		UserID:   userID,
+		UserID:   &userID,
+		FactorID: factorID,
+	}
+
+	return session, nil
+}
+
+func NewClientSession(clientID uuid.UUID, factorID *uuid.UUID) (*Session, error) {
+	id := uuid.Must(uuid.NewV4())
+
+	defaultAAL := AAL1.String()
+
+	session := &Session{
+		ID:       id,
+		AAL:      &defaultAAL,
+		ClientID: &clientID,
 		FactorID: factorID,
 	}
 

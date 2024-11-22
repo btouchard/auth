@@ -255,7 +255,7 @@ func (a *API) ResourceClientSecretGrant(ctx context.Context, w http.ResponseWrit
 	aud := a.requestAud(ctx, r)
 	config := a.config
 
-	if params.ClientID != "" || params.ClientSecret != "" {
+	if params.ClientID == "" || params.ClientSecret == "" {
 		return badRequestError(ErrorCodeValidationFailed, "Client ID and Secret should be provided on login.")
 	}
 	var client *models.Client

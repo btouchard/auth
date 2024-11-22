@@ -62,7 +62,7 @@ func (ts *MFATestSuite) SetupTest() {
 	require.NoError(ts.T(), f.SetSecret("secretkey", ts.Config.Security.DBEncryption.Encrypt, ts.Config.Security.DBEncryption.EncryptionKeyID, ts.Config.Security.DBEncryption.EncryptionKey))
 	require.NoError(ts.T(), ts.API.db.Create(f), "Error saving new test factor")
 	// Create corresponding session
-	s, err := models.NewSession(u.ID, &f.ID)
+	s, err := models.NewUserSession(u.ID, &f.ID)
 	require.NoError(ts.T(), err, "Error creating test session")
 	require.NoError(ts.T(), ts.API.db.Create(s), "Error saving test session")
 
@@ -72,7 +72,7 @@ func (ts *MFATestSuite) SetupTest() {
 	ts.TestUser = u
 	ts.TestSession = s
 
-	secondarySession, err := models.NewSession(ts.TestUser.ID, &f.ID)
+	secondarySession, err := models.NewUserSession(ts.TestUser.ID, &f.ID)
 	require.NoError(ts.T(), err, "Error creating test session")
 	require.NoError(ts.T(), ts.API.db.Create(secondarySession), "Error saving test session")
 

@@ -190,7 +190,7 @@ func (ts *VerifyTestSuite) TestVerifySecureEmailChange() {
 
 			// Generate access token for request and a mock session
 			var token string
-			session, err := models.NewSession(u.ID, nil)
+			session, err := models.NewUserSession(u.ID, nil)
 			require.NoError(ts.T(), err)
 			require.NoError(ts.T(), ts.API.db.Create(session))
 

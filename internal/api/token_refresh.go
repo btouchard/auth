@@ -44,7 +44,7 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 	for retry && time.Since(retryStart).Seconds() < retryLoopDuration {
 		retry = false
 
-		user, token, session, err := models.FindUserWithRefreshToken(db, params.RefreshToken, false)
+		actor, token, session, err := models.FindActorWithRefreshToken(db, params.RefreshToken, false)
 		if err != nil {
 			if models.IsNotFoundError(err) {
 				return badRequestError(ErrorCodeRefreshTokenNotFound, "Invalid Refresh Token: Refresh Token Not Found")
@@ -52,7 +52,7 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 			return internalServerError(err.Error())
 		}
 
-		if user.IsBanned() {
+		if actor.IsBanned() {
 			return badRequestError(ErrorCodeUserBanned, "Invalid Refresh Token: User Banned")
 		}
 
@@ -89,7 +89,7 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 		var newTokenResponse *AccessTokenResponse
 
 		err = db.Transaction(func(tx *storage.Connection) error {
-			user, token, session, terr := models.FindUserWithRefreshToken(tx, params.RefreshToken, true /* forUpdate */)
+			actor, token, session, terr := models.FindActorWithRefreshToken(tx, params.RefreshToken, true /* forUpdate */)
 			if terr != nil {
 				if models.IsNotFoundError(terr) {
 					// because forUpdate was set, and the
@@ -107,14 +107,14 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 			}
 
 			if a.config.Sessions.SinglePerUser {
-				sessions, terr := models.FindAllSessionsForUser(tx, user.ID, true /* forUpdate */)
+				sessions, terr := models.FindAllSessionsForUser(tx, actor.GetID(), true /* forUpdate */)
 				if models.IsNotFoundError(terr) {
 					// because forUpdate was set, and the
 					// previous check outside the
-					// transaction found a user and
+					// transaction found a actor and
 					// session, but now we're getting a
 					// IsNotFoundError, this means that the
-					// user is locked and we need to retry
+					// actor is locked and we need to retry
 					// in a few milliseconds
 					retry = true
 					return terr
@@ -124,8 +124,8 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 
 				sessionTag := session.DetermineTag(config.Sessions.Tags)
 
-				// go through all sessions of the user and
-				// check if the current session is the user's
+				// go through all sessions of the actor and
+				// check if the current session is the actor's
 				// most recently refreshed valid session
 				for _, s := range sessions {
 					if s.ID == session.ID {
@@ -136,7 +136,7 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 					if s.CheckValidity(retryStart, nil, config.Sessions.Timebox, config.Sessions.InactivityTimeout) != models.SessionValid {
 						// session is not valid so it
 						// can't be regarded as active
-						// on the user
+						// on the actor
 						continue
 					}
 
@@ -157,7 +157,7 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 					}
 				}
 
-				// this session is the user's active session
+				// this session is the actor's active session
 			}
 
 			// refresh token row and session are locked at this
@@ -201,12 +201,12 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 				}
 			}
 
-			if terr = models.NewAuditLogEntry(r, tx, user, models.TokenRefreshedAction, "", nil); terr != nil {
+			if terr = models.NewAuditLogEntry(r, tx, actor, models.TokenRefreshedAction, "", nil); terr != nil {
 				return terr
 			}
 
 			if issuedToken == nil {
-				newToken, terr := models.GrantRefreshTokenSwap(r, tx, user, token)
+				newToken, terr := models.GrantRefreshTokenSwap(r, tx, actor, token)
 				if terr != nil {
 					return terr
 				}
@@ -214,7 +214,7 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 				issuedToken = newToken
 			}
 
-			tokenString, expiresAt, terr = a.generateAccessToken(r, tx, user, issuedToken.SessionId, models.TokenRefresh)
+			tokenString, expiresAt, terr = a.generateAccessToken(r, tx, actor, issuedToken.SessionId, models.TokenRefresh)
 			if terr != nil {
 				httpErr, ok := terr.(*HTTPError)
 				if ok {
@@ -250,7 +250,11 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 				ExpiresIn:    config.JWT.Exp,
 				ExpiresAt:    expiresAt,
 				RefreshToken: issuedToken.Token,
-				User:         user,
+			}
+			if u, ok := actor.(*models.User); ok {
+				newTokenResponse.User = u
+			} else if c, ok := actor.(*models.Client); ok {
+				newTokenResponse.Client = c
 			}
 
 			return nil
@@ -266,7 +270,7 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 				return err
 			}
 		}
-		metering.RecordLogin("token", user.ID)
+		metering.RecordLogin("token", actor.GetID())
 		return sendJSON(w, http.StatusOK, newTokenResponse)
 	}
 

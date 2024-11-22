@@ -43,7 +43,7 @@ func TestSession(t *testing.T) {
 func (ts *SessionsTestSuite) TestFindBySessionIDWithForUpdate() {
 	u, err := FindUserByEmailAndAudience(ts.db, "test@example.com", ts.Config.JWT.Aud)
 	require.NoError(ts.T(), err)
-	session, err := NewSession(u.ID, nil)
+	session, err := NewUserSession(u.ID, nil)
 	require.NoError(ts.T(), err)
 	require.NoError(ts.T(), ts.db.Create(session))
 
@@ -65,7 +65,7 @@ func (ts *SessionsTestSuite) TestCalculateAALAndAMR() {
 	totalDistinctClaims := 3
 	u, err := FindUserByEmailAndAudience(ts.db, "test@example.com", ts.Config.JWT.Aud)
 	require.NoError(ts.T(), err)
-	session, err := NewSession(u.ID, nil)
+	session, err := NewUserSession(u.ID, nil)
 	require.NoError(ts.T(), err)
 	require.NoError(ts.T(), ts.db.Create(session))
 

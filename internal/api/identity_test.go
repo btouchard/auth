@@ -215,7 +215,7 @@ func (ts *IdentityTestSuite) TestUnlinkIdentity() {
 }
 
 func (ts *IdentityTestSuite) generateAccessTokenAndSession(u *models.User) string {
-	s, err := models.NewSession(u.ID, nil)
+	s, err := models.NewUserSession(u.ID, nil)
 	require.NoError(ts.T(), err)
 	require.NoError(ts.T(), ts.API.db.Create(s))
 

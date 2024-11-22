@@ -54,7 +54,7 @@ func (ts *UserTestSuite) generateToken(user *models.User, sessionId *uuid.UUID) 
 }
 
 func (ts *UserTestSuite) generateAccessTokenAndSession(user *models.User) string {
-	session, err := models.NewSession(user.ID, nil)
+	session, err := models.NewUserSession(user.ID, nil)
 	require.NoError(ts.T(), err)
 	require.NoError(ts.T(), ts.API.db.Create(session))
 

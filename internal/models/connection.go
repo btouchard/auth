@@ -36,6 +36,7 @@ func TruncateAll(conn *storage.Connection) error {
 	return conn.Transaction(func(tx *storage.Connection) error {
 		tables := []string{
 			(&pop.Model{Value: User{}}).TableName(),
+			(&pop.Model{Value: Client{}}).TableName(),
 			(&pop.Model{Value: Identity{}}).TableName(),
 			(&pop.Model{Value: RefreshToken{}}).TableName(),
 			(&pop.Model{Value: AuditLogEntry{}}).TableName(),

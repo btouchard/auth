@@ -19,7 +19,8 @@ type RefreshToken struct {
 
 	Token string `db:"token"`
 
-	UserID uuid.UUID `db:"user_id"`
+	UserID   *uuid.UUID `db:"user_id"`
+	ClientID *uuid.UUID `db:"client_id"`
 
 	Parent    storage.NullString `db:"parent"`
 	SessionId *uuid.UUID         `db:"session_id"`
@@ -59,11 +60,11 @@ func GrantAuthenticatedUser(tx *storage.Connection, actor Actor, params GrantPar
 }
 
 // GrantRefreshTokenSwap swaps a refresh token for a new one, revoking the provided token.
-func GrantRefreshTokenSwap(r *http.Request, tx *storage.Connection, user *User, token *RefreshToken) (*RefreshToken, error) {
+func GrantRefreshTokenSwap(r *http.Request, tx *storage.Connection, actor Actor, token *RefreshToken) (*RefreshToken, error) {
 	var newToken *RefreshToken
 	err := tx.Transaction(func(rtx *storage.Connection) error {
 		var terr error
-		if terr = NewAuditLogEntry(r, tx, user, TokenRevokedAction, "", nil); terr != nil {
+		if terr = NewAuditLogEntry(r, tx, actor, TokenRevokedAction, "", nil); terr != nil {
 			return errors.Wrap(terr, "error creating audit log entry")
 		}
 
@@ -72,7 +73,7 @@ func GrantRefreshTokenSwap(r *http.Request, tx *storage.Connection, user *User, 
 			return terr
 		}
 
-		newToken, terr = createRefreshToken(rtx, user, token, &GrantParams{})
+		newToken, terr = createRefreshToken(rtx, actor, token, &GrantParams{})
 		return terr
 	})
 	return newToken, err
@@ -117,9 +118,13 @@ func FindTokenBySessionID(tx *storage.Connection, sessionId *uuid.UUID) (*Refres
 
 func createRefreshToken(tx *storage.Connection, actor Actor, oldToken *RefreshToken, params *GrantParams) (*RefreshToken, error) {
 	token := &RefreshToken{
-		UserID: actor.GetID(),
 		Token:  crypto.SecureToken(),
 		Parent: "",
+	}
+	if u, ok := actor.(*User); ok {
+		token.UserID = &u.ID
+	} else if c, ok := actor.(*Client); ok {
+		token.ClientID = &c.ID
 	}
 	if oldToken != nil {
 		token.Parent = storage.NullString(oldToken.Token)
@@ -127,7 +132,13 @@ func createRefreshToken(tx *storage.Connection, actor Actor, oldToken *RefreshTo
 	}
 
 	if token.SessionId == nil {
-		session, err := NewSession(actor.GetID(), params.FactorID)
+		var session *Session
+		var err error
+		if _, ok := actor.(*Client); ok {
+			session, err = NewClientSession(actor.GetID(), params.FactorID)
+		} else {
+			session, err = NewUserSession(actor.GetID(), params.FactorID)
+		}
 		if err != nil {
 			return nil, errors.Wrap(err, "error instantiating new session object")
 		}

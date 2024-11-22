@@ -48,7 +48,7 @@ func (ts *AuditTestSuite) makeSuperAdmin(email string) string {
 	u.Role = "supabase_admin"
 	require.NoError(ts.T(), ts.API.db.Create(u))
 
-	session, err := models.NewSession(u.ID, nil)
+	session, err := models.NewUserSession(u.ID, nil)
 	require.NoError(ts.T(), err)
 	require.NoError(ts.T(), ts.API.db.Create(session))
 

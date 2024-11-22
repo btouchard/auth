@@ -231,12 +231,12 @@ func findClient(tx *storage.Connection, query string, args ...interface{}) (*Cli
 
 // FindClientByClientIDAndAudience finds a user with the matching client_id and audience.
 func FindClientByClientIDAndAudience(tx *storage.Connection, clientId, aud string) (*Client, error) {
-	return findClient(tx, "instance_id = ? and client_id = ? and aud = ? and is_sso_user = false", uuid.Nil, clientId, aud)
+	return findClient(tx, "client_id = ? and aud = ?", clientId, aud)
 }
 
 // FindClientByID finds a user matching the provided ID.
 func FindClientByID(tx *storage.Connection, id uuid.UUID) (*Client, error) {
-	return findClient(tx, "instance_id = ? and id = ?", uuid.Nil, id)
+	return findClient(tx, "id = ?", id)
 }
 
 // Ban a user for a given duration.

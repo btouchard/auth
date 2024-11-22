@@ -1,6 +1,6 @@
 -- auth.clients definition
 
-CREATE TABLE IF NOT EXISTS {{ index .Options "Namespace" }}.clients (
+create table if not exists {{ index .Options "Namespace" }}.clients (
     instance_id uuid NULL,
     id uuid NOT NULL UNIQUE,
     aud varchar(255) NULL,
@@ -16,3 +16,27 @@ CREATE TABLE IF NOT EXISTS {{ index .Options "Namespace" }}.clients (
     );
 
 comment on table {{ index .Options "Namespace" }}.clients is 'Auth: Stores client data within a secure schema.';
+
+alter table {{ index .Options "Namespace" }}.refresh_tokens
+    alter column user_id drop not null;
+
+alter table {{ index .Options "Namespace" }}.refresh_tokens
+    add column client_id uuid null;
+
+alter table {{ index .Options "Namespace" }}.refresh_tokens
+    add constraint refresh_tokens_client_id_fkey
+    foreign key (client_id)
+    references {{ index .Options "Namespace" }}.clients(id)
+    on delete cascade;
+
+alter table {{ index .Options "Namespace" }}.sessions
+    alter column user_id drop not null;
+
+alter table {{ index .Options "Namespace" }}.sessions
+    add column client_id uuid null;
+
+alter table {{ index .Options "Namespace" }}.sessions
+    add constraint sessions_client_id_fkey
+    foreign key (client_id)
+    references {{ index .Options "Namespace" }}.clients(id)
+    on delete cascade;
