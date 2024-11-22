@@ -16,6 +16,7 @@ services:
     volumes:
       - ./:/go/src/github.com/supabase/auth
     command: CompileDaemon --build="make build" --directory=/go/src/github.com/supabase/auth --recursive=true -pattern="(.+\.go|.+\.env)" -exclude=auth -exclude=auth-arm64 -exclude=.env --command="/go/src/github.com/supabase/auth/auth -c=.env.docker"
+
   postgres:
     build:
       context: .

@@ -10,6 +10,7 @@ Auth is a user management and authentication server written in Go that powers
 - User management
 - Sign in with email, password, magic link, phone number
 - Sign in with external providers (Google, Apple, Facebook, Discord, ...)
+- Sign in with client secret OAuth2 mechanism
 
 It is originally based on the excellent
 [GoTrue codebase by Netlify](https://github.com/netlify/gotrue), however both have diverged significantly in features and capabilities.
@@ -1070,6 +1071,23 @@ body:
 {
   "phone": "12345678",
   "password": "somepassword"
+}
+```
+
+or
+
+query params:
+
+```
+?grant_type=client_secret
+```
+
+body:
+
+```json
+{
+  "client_id": "unique-client-id",
+  "client_secret": "client-secret"
 }
 ```
 
