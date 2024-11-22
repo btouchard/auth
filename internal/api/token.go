@@ -447,6 +447,11 @@ func (a *API) generateAccessToken(r *http.Request, tx *storage.Connection, actor
 		claims.AppMetaData = user.AppMetaData
 		claims.UserMetaData = user.UserMetaData
 		claims.IsAnonymous = user.IsAnonymous
+	} else if client, ok := actor.(*models.Client); ok {
+		claims.ClientID = client.GetClientID()
+		claims.AppMetaData = map[string]interface{}{}
+		claims.UserMetaData = map[string]interface{}{}
+		claims.IsAnonymous = false
 	}
 
 	var gotrueClaims jwt.Claims = claims

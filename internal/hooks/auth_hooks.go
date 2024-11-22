@@ -70,6 +70,9 @@ const MinimumViableTokenSchema = `{
     "phone": {
       "type": "string"
     },
+    "client_id": {
+      "type": "string"
+    },
     "app_metadata": {
       "type": "object",
       "additionalProperties": true
@@ -102,6 +105,7 @@ type AccessTokenClaims struct {
 	jwt.RegisteredClaims
 	Email                         string                 `json:"email"`
 	Phone                         string                 `json:"phone"`
+	ClientID                      string                 `json:"client_id"`
 	AppMetaData                   map[string]interface{} `json:"app_metadata"`
 	UserMetaData                  map[string]interface{} `json:"user_metadata"`
 	Role                          string                 `json:"role"`
