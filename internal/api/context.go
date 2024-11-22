@@ -20,6 +20,7 @@ const (
 	signatureKey            = contextKey("signature")
 	externalProviderTypeKey = contextKey("external_provider_type")
 	userKey                 = contextKey("user")
+	clientKey               = contextKey("client")
 	targetUserKey           = contextKey("target_user")
 	factorKey               = contextKey("factor")
 	sessionKey              = contextKey("session")
@@ -61,6 +62,11 @@ func withUser(ctx context.Context, u *models.User) context.Context {
 	return context.WithValue(ctx, userKey, u)
 }
 
+// withClient adds the client to the context.
+func withClient(ctx context.Context, c *models.Client) context.Context {
+	return context.WithValue(ctx, clientKey, c)
+}
+
 // withTargetUser adds the target user for linking to the context.
 func withTargetUser(ctx context.Context, u *models.User) context.Context {
 	return context.WithValue(ctx, targetUserKey, u)
@@ -81,6 +87,18 @@ func getUser(ctx context.Context) *models.User {
 		return nil
 	}
 	return obj.(*models.User)
+}
+
+// getClient reads the client from the context.
+func getClient(ctx context.Context) *models.Client {
+	if ctx == nil {
+		return nil
+	}
+	obj := ctx.Value(clientKey)
+	if obj == nil {
+		return nil
+	}
+	return obj.(*models.Client)
 }
 
 // getTargetUser reads the user from the context.

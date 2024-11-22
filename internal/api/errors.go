@@ -15,9 +15,10 @@ import (
 
 // Common error messages during signup flow
 var (
-	DuplicateEmailMsg       = "A user with this email address has already been registered"
-	DuplicatePhoneMsg       = "A user with this phone number has already been registered"
-	UserExistsError   error = errors.New("user already exists")
+	DuplicateEmailMsg          = "A user with this email address has already been registered"
+	DuplicatePhoneMsg          = "A user with this phone number has already been registered"
+	DuplicateClientIDMsg       = "A client with this client id has already been registered"
+	UserExistsError      error = errors.New("user already exists")
 )
 
 const InvalidChannelError = "Invalid channel, supported values are 'sms' or 'whatsapp'"
@@ -197,6 +198,7 @@ func HandleResponseError(err error, w http.ResponseWriter, r *http.Request) {
 
 	switch e := err.(type) {
 	case *WeakPasswordError:
+	case *WeakSecretError:
 		if apiVersion.Compare(APIVersion20240101) >= 0 {
 			var output struct {
 				HTTPErrorResponse20240101

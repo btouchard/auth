@@ -5,6 +5,8 @@ func IsNotFoundError(err error) bool {
 	switch err.(type) {
 	case UserNotFoundError, *UserNotFoundError:
 		return true
+	case ClientNotFoundError, *ClientNotFoundError:
+		return true
 	case SessionNotFoundError, *SessionNotFoundError:
 		return true
 	case ConfirmationTokenNotFoundError, *ConfirmationTokenNotFoundError:

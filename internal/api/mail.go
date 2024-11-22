@@ -574,6 +574,20 @@ func (a *API) validateEmail(email string) (string, error) {
 	return strings.ToLower(email), nil
 }
 
+func (a *API) validateClientID(clientId string) (string, error) {
+	if clientId == "" {
+		return "", badRequestError(ErrorCodeValidationFailed, "An client id is required")
+	}
+	if len(clientId) < 12 {
+		return "", badRequestError(ErrorCodeValidationFailed, "An client id is too short")
+	}
+	if len(clientId) > 255 {
+		return "", badRequestError(ErrorCodeValidationFailed, "An client id is too long")
+	}
+
+	return clientId, nil
+}
+
 func validateSentWithinFrequencyLimit(sentAt *time.Time, frequency time.Duration) error {
 	if sentAt != nil && sentAt.Add(frequency).After(time.Now()) {
 		return tooManyRequestsError(ErrorCodeOverEmailSendRateLimit, generateFrequencyLimitErrorMessage(sentAt, frequency))

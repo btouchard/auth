@@ -23,6 +23,7 @@ import (
 )
 
 const defaultMinPasswordLength int = 6
+const defaultMinSecretLength int = 12
 const defaultChallengeExpiryDuration float64 = 300
 const defaultFactorExpiryDuration time.Duration = 300 * time.Second
 const defaultFlowStateExpiryDuration time.Duration = 300 * time.Second
@@ -237,6 +238,12 @@ type PasswordConfiguration struct {
 	HIBP HIBPConfiguration `json:"hibp"`
 }
 
+type SecretConfiguration struct {
+	MinLength int `json:"min_length" split_words:"true"`
+
+	RequiredCharacters PasswordRequiredCharacters `json:"required_characters" split_words:"true"`
+}
+
 // GlobalConfiguration holds all the configuration that applies to all instances.
 type GlobalConfiguration struct {
 	API           APIConfiguration
@@ -262,6 +269,7 @@ type GlobalConfiguration struct {
 	URIAllowList    []string `json:"uri_allow_list" split_words:"true"`
 	URIAllowListMap map[string]glob.Glob
 	Password        PasswordConfiguration    `json:"password"`
+	Secret          SecretConfiguration      `json:"secret"`
 	JWT             JWTConfiguration         `json:"jwt"`
 	Mailer          MailerConfiguration      `json:"mailer"`
 	Sms             SmsProviderConfiguration `json:"sms"`
@@ -980,6 +988,10 @@ func (config *GlobalConfiguration) ApplyDefaults() error {
 
 	if config.Password.MinLength < defaultMinPasswordLength {
 		config.Password.MinLength = defaultMinPasswordLength
+	}
+
+	if config.Secret.MinLength < defaultMinSecretLength {
+		config.Secret.MinLength = defaultMinSecretLength
 	}
 
 	if config.MFA.ChallengeExpiryDuration < defaultChallengeExpiryDuration {

@@ -47,7 +47,7 @@ type AdminListUsersResponse struct {
 	Aud   string         `json:"aud"`
 }
 
-func (a *API) loadUser(w http.ResponseWriter, r *http.Request) (context.Context, error) {
+func (a *API) loadUser(_ http.ResponseWriter, r *http.Request) (context.Context, error) {
 	ctx := r.Context()
 	db := a.db.WithContext(ctx)
 
@@ -91,7 +91,7 @@ func (a *API) loadFactor(w http.ResponseWriter, r *http.Request) (context.Contex
 	return withFactor(ctx, factor), nil
 }
 
-func (a *API) getAdminParams(r *http.Request) (*AdminUserParams, error) {
+func (a *API) getAdminUserParams(r *http.Request) (*AdminUserParams, error) {
 	params := &AdminUserParams{}
 	if err := retrieveRequestParams(r, params); err != nil {
 		return nil, err
@@ -144,7 +144,7 @@ func (a *API) adminUserUpdate(w http.ResponseWriter, r *http.Request) error {
 	config := a.config
 	user := getUser(ctx)
 	adminUser := getAdminUser(ctx)
-	params, err := a.getAdminParams(r)
+	params, err := a.getAdminUserParams(r)
 	if err != nil {
 		return err
 	}
@@ -176,13 +176,13 @@ func (a *API) adminUserUpdate(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if params.Password != nil {
-		password := *params.Password
+		pwd := *params.Password
 
-		if err := a.checkPasswordStrength(ctx, password); err != nil {
+		if err := a.checkPasswordStrength(ctx, pwd); err != nil {
 			return err
 		}
 
-		if err := user.SetPassword(ctx, password, config.Security.DBEncryption.Encrypt, config.Security.DBEncryption.EncryptionKeyID, config.Security.DBEncryption.EncryptionKey); err != nil {
+		if err := user.SetPassword(ctx, pwd, config.Security.DBEncryption.Encrypt, config.Security.DBEncryption.EncryptionKeyID, config.Security.DBEncryption.EncryptionKey); err != nil {
 			return err
 		}
 	}
@@ -327,7 +327,7 @@ func (a *API) adminUserCreate(w http.ResponseWriter, r *http.Request) error {
 	config := a.config
 
 	adminUser := getAdminUser(ctx)
-	params, err := a.getAdminParams(r)
+	params, err := a.getAdminUserParams(r)
 	if err != nil {
 		return err
 	}
@@ -373,11 +373,11 @@ func (a *API) adminUserCreate(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if (params.Password == nil || *params.Password == "") && params.PasswordHash == "" {
-		password, err := password.Generate(64, 10, 0, false, true)
+		pwd, err := password.Generate(64, 10, 0, false, true)
 		if err != nil {
 			return internalServerError("Error generating password").WithInternalError(err)
 		}
-		params.Password = &password
+		params.Password = &pwd
 	}
 
 	var user *models.User

@@ -19,7 +19,7 @@ import (
 	"github.com/supabase/auth/internal/models"
 )
 
-type AdminTestSuite struct {
+type AdminUserTestSuite struct {
 	suite.Suite
 	User   *models.User
 	API    *API
@@ -28,11 +28,11 @@ type AdminTestSuite struct {
 	token string
 }
 
-func TestAdmin(t *testing.T) {
+func TestAdminUser(t *testing.T) {
 	api, config, err := setupAPIForTest()
 	require.NoError(t, err)
 
-	ts := &AdminTestSuite{
+	ts := &AdminUserTestSuite{
 		API:    api,
 		Config: config,
 	}
@@ -41,8 +41,8 @@ func TestAdmin(t *testing.T) {
 	suite.Run(t, ts)
 }
 
-func (ts *AdminTestSuite) SetupTest() {
-	models.TruncateAll(ts.API.db)
+func (ts *AdminUserTestSuite) SetupTest() {
+	_ = models.TruncateAll(ts.API.db)
 	ts.Config.External.Email.Enabled = true
 	claims := &AccessTokenClaims{
 		Role: "supabase_admin",
@@ -53,7 +53,7 @@ func (ts *AdminTestSuite) SetupTest() {
 }
 
 // TestAdminUsersUnauthorized tests API /admin/users route without authentication
-func (ts *AdminTestSuite) TestAdminUsersUnauthorized() {
+func (ts *AdminUserTestSuite) TestAdminUsersUnauthorized() {
 	req := httptest.NewRequest(http.MethodGet, "/admin/users", nil)
 	w := httptest.NewRecorder()
 
@@ -62,7 +62,7 @@ func (ts *AdminTestSuite) TestAdminUsersUnauthorized() {
 }
 
 // TestAdminUsers tests API /admin/users route
-func (ts *AdminTestSuite) TestAdminUsers() {
+func (ts *AdminUserTestSuite) TestAdminUsers() {
 	// Setup request
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/admin/users", nil)
@@ -77,7 +77,7 @@ func (ts *AdminTestSuite) TestAdminUsers() {
 }
 
 // TestAdminUsers tests API /admin/users route
-func (ts *AdminTestSuite) TestAdminUsers_Pagination() {
+func (ts *AdminUserTestSuite) TestAdminUsers_Pagination() {
 	u, err := models.NewUser("12345678", "test1@example.com", "test", ts.Config.JWT.Aud, nil)
 	require.NoError(ts.T(), err, "Error making new user")
 	require.NoError(ts.T(), ts.API.db.Create(u), "Error creating user")
@@ -106,7 +106,7 @@ func (ts *AdminTestSuite) TestAdminUsers_Pagination() {
 }
 
 // TestAdminUsers tests API /admin/users route
-func (ts *AdminTestSuite) TestAdminUsers_SortAsc() {
+func (ts *AdminUserTestSuite) TestAdminUsers_SortAsc() {
 	u, err := models.NewUser("", "test1@example.com", "test", ts.Config.JWT.Aud, nil)
 	u.CreatedAt = time.Now().Add(-time.Minute)
 	require.NoError(ts.T(), err, "Error making new user")
@@ -141,7 +141,7 @@ func (ts *AdminTestSuite) TestAdminUsers_SortAsc() {
 }
 
 // TestAdminUsers tests API /admin/users route
-func (ts *AdminTestSuite) TestAdminUsers_SortDesc() {
+func (ts *AdminUserTestSuite) TestAdminUsers_SortDesc() {
 	u, err := models.NewUser("12345678", "test1@example.com", "test", ts.Config.JWT.Aud, nil)
 	u.CreatedAt = time.Now().Add(-time.Minute)
 	require.NoError(ts.T(), err, "Error making new user")
@@ -173,7 +173,7 @@ func (ts *AdminTestSuite) TestAdminUsers_SortDesc() {
 }
 
 // TestAdminUsers tests API /admin/users route
-func (ts *AdminTestSuite) TestAdminUsers_FilterEmail() {
+func (ts *AdminUserTestSuite) TestAdminUsers_FilterEmail() {
 	u, err := models.NewUser("", "test1@example.com", "test", ts.Config.JWT.Aud, nil)
 	require.NoError(ts.T(), err, "Error making new user")
 	require.NoError(ts.T(), ts.API.db.Create(u), "Error creating user")
@@ -198,7 +198,7 @@ func (ts *AdminTestSuite) TestAdminUsers_FilterEmail() {
 }
 
 // TestAdminUsers tests API /admin/users route
-func (ts *AdminTestSuite) TestAdminUsers_FilterName() {
+func (ts *AdminUserTestSuite) TestAdminUsers_FilterName() {
 	u, err := models.NewUser("", "test1@example.com", "test", ts.Config.JWT.Aud, map[string]interface{}{"full_name": "Test User"})
 	require.NoError(ts.T(), err, "Error making new user")
 	require.NoError(ts.T(), ts.API.db.Create(u), "Error creating user")
@@ -227,7 +227,7 @@ func (ts *AdminTestSuite) TestAdminUsers_FilterName() {
 }
 
 // TestAdminUserCreate tests API /admin/user route (POST)
-func (ts *AdminTestSuite) TestAdminUserCreate() {
+func (ts *AdminUserTestSuite) TestAdminUserCreate() {
 	cases := []struct {
 		desc     string
 		params   map[string]interface{}
@@ -402,7 +402,7 @@ func (ts *AdminTestSuite) TestAdminUserCreate() {
 }
 
 // TestAdminUserGet tests API /admin/user route (GET)
-func (ts *AdminTestSuite) TestAdminUserGet() {
+func (ts *AdminUserTestSuite) TestAdminUserGet() {
 	u, err := models.NewUser("12345678", "test1@example.com", "test", ts.Config.JWT.Aud, map[string]interface{}{"full_name": "Test Get User"})
 	require.NoError(ts.T(), err, "Error making new user")
 	require.NoError(ts.T(), ts.API.db.Create(u), "Error creating user")
@@ -428,7 +428,7 @@ func (ts *AdminTestSuite) TestAdminUserGet() {
 }
 
 // TestAdminUserUpdate tests API /admin/user route (UPDATE)
-func (ts *AdminTestSuite) TestAdminUserUpdate() {
+func (ts *AdminUserTestSuite) TestAdminUserUpdate() {
 	u, err := models.NewUser("12345678", "test1@example.com", "test", ts.Config.JWT.Aud, nil)
 	require.NoError(ts.T(), err, "Error making new user")
 	require.NoError(ts.T(), ts.API.db.Create(u), "Error creating user")
@@ -493,7 +493,7 @@ func (ts *AdminTestSuite) TestAdminUserUpdate() {
 	}
 }
 
-func (ts *AdminTestSuite) TestAdminUserUpdatePasswordFailed() {
+func (ts *AdminUserTestSuite) TestAdminUserUpdatePasswordFailed() {
 	u, err := models.NewUser("12345678", "test1@example.com", "test", ts.Config.JWT.Aud, nil)
 	require.NoError(ts.T(), err, "Error making new user")
 	require.NoError(ts.T(), ts.API.db.Create(u), "Error creating user")
@@ -516,7 +516,7 @@ func (ts *AdminTestSuite) TestAdminUserUpdatePasswordFailed() {
 	})
 }
 
-func (ts *AdminTestSuite) TestAdminUserUpdateBannedUntilFailed() {
+func (ts *AdminUserTestSuite) TestAdminUserUpdateBannedUntilFailed() {
 	u, err := models.NewUser("", "test1@example.com", "test", ts.Config.JWT.Aud, nil)
 	require.NoError(ts.T(), err, "Error making new user")
 	require.NoError(ts.T(), ts.API.db.Create(u), "Error creating user")
@@ -540,7 +540,7 @@ func (ts *AdminTestSuite) TestAdminUserUpdateBannedUntilFailed() {
 }
 
 // TestAdminUserDelete tests API /admin/users route (DELETE)
-func (ts *AdminTestSuite) TestAdminUserDelete() {
+func (ts *AdminUserTestSuite) TestAdminUserDelete() {
 	type expected struct {
 		code int
 		err  error
@@ -624,7 +624,7 @@ func (ts *AdminTestSuite) TestAdminUserDelete() {
 	}
 }
 
-func (ts *AdminTestSuite) TestAdminUserSoftDeletion() {
+func (ts *AdminUserTestSuite) TestAdminUserSoftDeletion() {
 	// create user
 	u, err := models.NewUser("123456789", "test@example.com", "secret", ts.Config.JWT.Aud, map[string]interface{}{"name": "test"})
 	require.NoError(ts.T(), err)
@@ -691,7 +691,7 @@ func (ts *AdminTestSuite) TestAdminUserSoftDeletion() {
 	}
 }
 
-func (ts *AdminTestSuite) TestAdminUserCreateWithDisabledLogin() {
+func (ts *AdminUserTestSuite) TestAdminUserCreateWithDisabledLogin() {
 	var cases = []struct {
 		desc         string
 		customConfig *conf.GlobalConfiguration
@@ -764,7 +764,7 @@ func (ts *AdminTestSuite) TestAdminUserCreateWithDisabledLogin() {
 }
 
 // TestAdminUserDeleteFactor tests API /admin/users/<user_id>/factors/<factor_id>/
-func (ts *AdminTestSuite) TestAdminUserDeleteFactor() {
+func (ts *AdminUserTestSuite) TestAdminUserDeleteFactor() {
 	u, err := models.NewUser("123456789", "test-delete@example.com", "test", ts.Config.JWT.Aud, nil)
 	require.NoError(ts.T(), err, "Error making new user")
 	require.NoError(ts.T(), ts.API.db.Create(u), "Error creating user")
@@ -789,7 +789,7 @@ func (ts *AdminTestSuite) TestAdminUserDeleteFactor() {
 }
 
 // TestAdminUserGetFactor tests API /admin/user/<user_id>/factors/
-func (ts *AdminTestSuite) TestAdminUserGetFactors() {
+func (ts *AdminUserTestSuite) TestAdminUserGetFactors() {
 	u, err := models.NewUser("123456789", "test-delete@example.com", "test", ts.Config.JWT.Aud, nil)
 	require.NoError(ts.T(), err, "Error making new user")
 	require.NoError(ts.T(), ts.API.db.Create(u), "Error creating user")
@@ -811,7 +811,7 @@ func (ts *AdminTestSuite) TestAdminUserGetFactors() {
 	require.Equal(ts.T(), getFactorsResp[0].Secret, "")
 }
 
-func (ts *AdminTestSuite) TestAdminUserUpdateFactor() {
+func (ts *AdminUserTestSuite) TestAdminUserUpdateFactor() {
 	u, err := models.NewUser("123456789", "test-delete@example.com", "test", ts.Config.JWT.Aud, nil)
 	require.NoError(ts.T(), err, "Error making new user")
 	require.NoError(ts.T(), ts.API.db.Create(u), "Error creating user")
@@ -855,7 +855,7 @@ func (ts *AdminTestSuite) TestAdminUserUpdateFactor() {
 	}
 }
 
-func (ts *AdminTestSuite) TestAdminUserCreateValidationErrors() {
+func (ts *AdminUserTestSuite) TestAdminUserCreateValidationErrors() {
 	cases := []struct {
 		desc   string
 		params map[string]interface{}

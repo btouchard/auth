@@ -60,6 +60,7 @@ func isStringInSlice(checkValue string, list []string) bool {
 
 type RequestParams interface {
 	AdminUserParams |
+		AdminClientParams |
 		CreateSSOProviderParams |
 		EnrollFactorParams |
 		GenerateLinkParams |
@@ -80,6 +81,7 @@ type RequestParams interface {
 		VerifyParams |
 		adminUserUpdateFactorParams |
 		adminUserDeleteParams |
+		adminClientDeleteParams |
 		security.GotrueRequest |
 		ChallengeFactorParams |
 		struct {

@@ -259,6 +259,18 @@ func NewAPIWithVersion(globalConfig *conf.GlobalConfiguration, db *storage.Conne
 				})
 			})
 
+			r.Route("/clients", func(r *router) {
+				r.Get("/", api.adminClients)
+				r.Post("/", api.adminClientCreate)
+
+				r.Route("/{client_id}", func(r *router) {
+					r.Use(api.loadClient)
+					r.Get("/", api.adminClientGet)
+					r.Put("/", api.adminClientUpdate)
+					r.Delete("/", api.adminClientDelete)
+				})
+			})
+
 			r.Post("/generate_link", api.adminGenerateLink)
 
 			r.Route("/sso", func(r *router) {

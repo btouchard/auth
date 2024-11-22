@@ -83,8 +83,7 @@ func NewClient(clientId, password, aud string) (*Client, error) {
 
 // TableName overrides the table name used by pop
 func (Client) TableName() string {
-	tableName := "clients"
-	return tableName
+	return "clients"
 }
 
 func (c *Client) GetID() uuid.UUID {
@@ -169,6 +168,26 @@ func (c *Client) SetSecret(ctx context.Context, secret string, encrypt bool, enc
 	return nil
 }
 
+// UpdateSecret updates the client's secret. Use UpdateSecret outside of a transaction first!
+func (c *Client) UpdateSecret(tx *storage.Connection, sessionID *uuid.UUID) error {
+	// These need to be reset because password change may mean the user no longer trusts the actions performed by the previous password.
+	if err := tx.UpdateOnly(c, "encrypted_secret"); err != nil {
+		return err
+	}
+
+	if err := ClearAllOneTimeTokensForUser(tx, c.ID); err != nil {
+		return err
+	}
+
+	if sessionID == nil {
+		// log out user from all sessions to ensure reauthentication after password change
+		return Logout(tx, c.ID)
+	} else {
+		// log out user from all other sessions to ensure reauthentication after password change
+		return LogoutAllExceptMe(tx, *sessionID, c.ID)
+	}
+}
+
 // Authenticate a user from a password
 func (c *Client) Authenticate(ctx context.Context, tx *storage.Connection, password string, decryptionKeys map[string]string, encrypt bool, encryptionKeyID string) (bool, bool, error) {
 	if c.EncryptedSecret == nil {
@@ -239,6 +258,33 @@ func FindClientByID(tx *storage.Connection, id uuid.UUID) (*Client, error) {
 	return findClient(tx, "id = ?", id)
 }
 
+// FindClientsInAudience finds users with the matching audience.
+func FindClientsInAudience(tx *storage.Connection, aud string, pageParams *Pagination, sortParams *SortParams, filter string) ([]*Client, error) {
+	clients := []*Client{}
+	q := tx.Q().Where("aud = ?", aud)
+
+	if filter != "" {
+		lf := "%" + filter + "%"
+		q = q.Where("client_id LIKE ?", lf)
+	}
+
+	if sortParams != nil && len(sortParams.Fields) > 0 {
+		for _, field := range sortParams.Fields {
+			q = q.Order(field.Name + " " + string(field.Dir))
+		}
+	}
+
+	var err error
+	if pageParams != nil {
+		err = q.Paginate(int(pageParams.Page), int(pageParams.PerPage)).All(&clients) // #nosec G115
+		pageParams.Count = uint64(q.Paginator.TotalEntriesSize)                       // #nosec G115
+	} else {
+		err = q.All(&clients)
+	}
+
+	return clients, err
+}
+
 // Ban a user for a given duration.
 func (c *Client) Ban(tx *storage.Connection, duration time.Duration) error {
 	if duration == time.Duration(0) {
@@ -256,6 +302,16 @@ func (c *Client) IsBanned() bool {
 		return false
 	}
 	return time.Now().Before(*c.BannedUntil)
+}
+
+// IsDuplicatedClientID returns whether a client exists with a matching client_id and audience.
+func IsDuplicatedClientID(tx *storage.Connection, clientId, aud string) (*Client, error) {
+	client, err := FindClientByClientIDAndAudience(tx, clientId, aud)
+	if err != nil && !IsNotFoundError(err) {
+		return nil, errors.Wrap(err, "unable to find client id for duplicates")
+	}
+
+	return client, nil
 }
 
 func (c *Client) UpdateBannedUntil(tx *storage.Connection) error {
