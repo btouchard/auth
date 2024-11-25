@@ -217,7 +217,7 @@ func (a *API) adminClientCreate(w http.ResponseWriter, r *http.Request) error {
 		} else if client != nil {
 			return unprocessableEntityError(ErrorCodeClientIDExists, DuplicateClientIDMsg)
 		}
-		providers = append(providers, "client_secret")
+		providers = append(providers, "client_credentials")
 	}
 
 	if params.ClientSecret == nil && params.ClientSecretHash == "" {

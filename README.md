@@ -1079,7 +1079,7 @@ or
 query params:
 
 ```
-?grant_type=client_secret
+?grant_type=client_credentials
 ```
 
 body:

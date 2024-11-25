@@ -67,7 +67,7 @@ type PasswordGrantParams struct {
 	Password string `json:"password"`
 }
 
-// ClientSecretGrantParams are the parameters the ResourceClientSecretGrant method accepts
+// ClientSecretGrantParams are the parameters the ClientCredentialsGrant method accepts
 type ClientSecretGrantParams struct {
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
@@ -89,8 +89,8 @@ func (a *API) Token(w http.ResponseWriter, r *http.Request) error {
 	switch grantType {
 	case "password":
 		return a.ResourceOwnerPasswordGrant(ctx, w, r)
-	case "client_secret":
-		return a.ResourceClientSecretGrant(ctx, w, r)
+	case "client_credentials":
+		return a.ClientCredentialsGrant(ctx, w, r)
 	case "refresh_token":
 		return a.RefreshTokenGrant(ctx, w, r)
 	case "id_token":
@@ -243,8 +243,8 @@ func (a *API) ResourceOwnerPasswordGrant(ctx context.Context, w http.ResponseWri
 	return sendJSON(w, http.StatusOK, token)
 }
 
-// ResourceClientSecretGrant implements the client secret grant type flow
-func (a *API) ResourceClientSecretGrant(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+// ClientCredentialsGrant implements the client secret grant type flow
+func (a *API) ClientCredentialsGrant(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	db := a.db.WithContext(ctx)
 
 	params := &ClientSecretGrantParams{}
@@ -332,7 +332,7 @@ func (a *API) ResourceClientSecretGrant(ctx context.Context, w http.ResponseWrit
 		return err
 	}
 
-	metering.RecordLogin("client_secret", client.ID)
+	metering.RecordLogin("client_id", client.ID)
 	return sendJSON(w, http.StatusOK, token)
 }
 

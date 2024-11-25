@@ -212,7 +212,7 @@ func (ts *AdminClientTestSuite) TestAdminClientCreate() {
 				"client_id":       "123456789abc",
 				"secret":          "test",
 				"isAuthenticated": true,
-				"provider":        "client_secret",
+				"provider":        "client_credentials",
 			},
 		},
 		{
@@ -226,7 +226,7 @@ func (ts *AdminClientTestSuite) TestAdminClientCreate() {
 				"client_id":       "123456789abc",
 				"secret":          "test",
 				"isAuthenticated": true,
-				"provider":        "client_secret",
+				"provider":        "client_credentials",
 			},
 		},
 		{
@@ -239,7 +239,7 @@ func (ts *AdminClientTestSuite) TestAdminClientCreate() {
 				"client_id":       "123456789abc",
 				"secret":          "test",
 				"isAuthenticated": true,
-				"provider":        "client_secret",
+				"provider":        "client_credentials",
 			},
 		},
 		{
@@ -254,7 +254,7 @@ func (ts *AdminClientTestSuite) TestAdminClientCreate() {
 				"client_id":       "123456789abc",
 				"secret":          "test",
 				"isAuthenticated": true,
-				"provider":        "client_secret",
+				"provider":        "client_credentials",
 			},
 		},
 	}
